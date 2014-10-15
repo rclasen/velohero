@@ -1,0 +1,93 @@
+#!/usr/bin/perl -w
+
+# upload files to velohero.com
+
+use warnings;
+use strict;
+use VeloHero;
+use Getopt::Long;
+#use Data::Dumper;
+
+my $needhelp;
+my $wanthelp;
+
+my $debug;
+my $user;
+my $pass;
+my $delay = 120;
+
+GetOptions(
+	"debug!"	=> \$debug,
+	"delay=i"	=> \$delay,
+	"help!"		=> \$wanthelp,
+	"pass=s"	=> \$pass,
+	"user=s"	=> \$user,
+) or $needhelp ++;
+
+if( $wanthelp ){
+	print "usage: $0 [options] <file1> ...
+upload files to velohero.com
+options:
+ --debug         enable debug logging
+ --delay=<sec>   delay between file uploads
+ --help          this cruft
+ --pass=<pwd>    velohero password
+ --user=<login>  velohero user id
+";
+	exit 0;
+}
+
+$user ||= prompt_user( "Login" );
+$pass ||= prompt_user( "Password" );
+
+if( ! $user ){
+	$needhelp++;
+	print STDERR "missing user name\n";
+}
+
+if( ! $pass ){
+	$needhelp++;
+	print STDERR "missing password\n";
+}
+
+if( $needhelp ){
+	print STDERR "please use $0 --help for usage info\n";
+	exit 1;
+}
+
+my $vhero = VeloHero->new({
+	debug	=> $debug,
+	user	=> $user,
+	pass	=> $pass,
+});
+
+my $uploaded;
+foreach my $f ( @ARGV ){
+	my $type = ($f =~ /\.([^.]+)$/)[0];
+
+	if( $uploaded && $delay > 0 ){
+		print "delaying next upload ($delay)\n";
+		sleep( $delay );
+	}
+
+	{ local $|=1; print "uploading $f ..."; }
+	my $id = $vhero->file_upload( $f, $type );
+	print " $id\n";
+
+	$uploaded++;
+}
+
+#print Dumper($r);
+
+# all done
+exit 1;
+
+sub prompt_user {
+	my( $prompt ) = @_;
+
+	{ local $|=1; print $prompt, ": "; }
+	my $resp = <STDIN>;
+	chomp $resp;
+	$resp;
+}
+
